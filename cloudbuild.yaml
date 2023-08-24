@@ -1,0 +1,27 @@
+steps:
+  # - id: Testing
+  #   name: 'bash'
+  #   script: |
+  #     #!/usr/bin/env bash
+  #     echo "hello BPT" >> example.html
+  - id: testing gcloud
+    name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args: ['gsutil','cp','a.html','gs://bkt-conscent-cicd-static-website/']
+    # args: ['gsutil','cp','hhii.html','gs://hidfgh/']
+    #args: ['gcloud','compute','url-maps','invalidate-cdn-cache','lb-poc-01','--path','/*','--project','prj-k12-poc-78584']
+   # args: ['gcloud','compute','url-maps','invalidate-cdn-cache','lb-poc-01','--path','/abc/hi.txt']
+# steps:
+# - name: 'gcr.io/cloud-builders/gcloud'
+#   # entrypoint: 'bash'
+#   args:
+#   - '-c'
+#   - |
+#     gcloud config set project prj-k12-poc-78584
+#     gcloud compute url-maps invalidate-cdn-cache lb-poc-01 --path /abc/hi.txt
+  # args: ['ls']
+    # - '-c'
+    # - >
+    #   ls
+    #   echo "hii now im changed" >> example.html
+    #   gsutil cp -r example.html gs://hidfgh/example.html
