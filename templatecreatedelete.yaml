@@ -1,0 +1,75 @@
+steps:
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - '-c'
+      - >
+        gcloud compute instances start gce-conscentai-prod-as1-event-server
+        --zone=asia-south1-c
+    id: start-instance
+    entrypoint: bash
+  - name: bash
+    id: sleep-for-100-seconds
+    script: |
+      sleep 100
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - '-c'
+      - >
+        gcloud compute instances stop gce-conscentai-prod-as1-event-server
+        --zone=asia-south1-c
+    id: stop-instance
+    entrypoint: bash
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - '-c'
+      - >
+        gcloud compute images create
+        img-conscentai-prod-as1-event-server-$SHORT_SHA
+        --project=prj-prod-conscentai-service
+        --source-disk=gce-conscentai-prod-as1-event-server
+        --source-disk-zone=asia-south1-c --storage-location=asia-south1
+    id: create-image
+    entrypoint: bash
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - '-c'
+      - >
+        gcloud beta compute instance-templates create
+        instance-template-event-server-$SHORT_SHA
+        --project=prj-prod-conscentai-service --machine-type=n2d-standard-4
+        --network-interface=subnet=projects/prj-prod-conscentai-host/regions/asia-south1/subnetworks/sb-prod-as1-app,no-address
+        --instance-template-region=asia-south1  --maintenance-policy=MIGRATE
+        --provisioning-model=STANDARD
+        --service-account=sa-vm-event-server-01@prj-prod-conscentai-service.iam.gserviceaccount.com
+        --scopes=https://www.googleapis.com/auth/cloud-platform
+        --region=asia-south1 --tags=ssh,sit,event-server
+        --create-disk=auto-delete=yes,boot=yes,device-name=instance-template-event-server-$SHORT_SHA,image=projects/prj-prod-conscentai-service/global/images/img-conscentai-prod-as1-event-server-$SHORT_SHA,mode=rw,size=50,type=pd-balanced
+        --shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring
+        --reservation-affinity=any
+    id: create-template
+    entrypoint: bash
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - '-c'
+      - >
+        gcloud beta compute instance-groups managed rolling-action start-update
+        mig-conscentai-prod-as1-eventserver-01
+        --project=prj-prod-conscentai-service --type='proactive' --max-surge=3
+        --max-unavailable=0 --min-ready=0 --minimal-action='replace'
+        --most-disruptive-allowed-action='replace'
+        --replacement-method='substitute'
+        --version=template=projects/prj-prod-conscentai-service/regions/asia-south1/instanceTemplates/instance-template-event-server-$SHORT_SHA
+        --region=asia-south1
+    id: update-mig
+    entrypoint: bash
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - '-c'
+      - >
+        gcloud compute images delete "$(gcloud compute images list
+        --sort-by=creationTimestamp --format="value(name)" | grep
+        '^img-conscentai-prod-as1-event-server' | head -n 1)" --quiet
+    id: delete-prev-image
+    entrypoint: bash
+options:
+  logging: CLOUD_LOGGING_ONLY
