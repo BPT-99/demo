@@ -1,0 +1,39 @@
+steps:
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - '-c'
+      - |
+        echo "API_URL=${_API_URL}" >> .env
+        echo "DASHBOARD_URL=${_DASHBOARD_URL}" >> .env
+        echo "NEXT_PUBLIC_KAFKA_URL=${_NEXT_PUBLIC_KAFKA_URL}" >> .env
+        cat .env
+    entrypoint: bash
+  - name: 'node:16.19.1'
+    args:
+      - '-c'
+      - |
+        cat .env
+        npm install
+        npm -v
+        eval $(cat .env) npm run build-release
+    entrypoint: bash
+  - name: gcr.io/cloud-builders/gsutil
+    args:
+      - '-m'
+      - rsync
+      - '-r'
+      - dist/
+      - 'gs://gcp-sdk.conscent.in'
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - gcloud
+      - compute
+      - url-maps
+      - invalidate-cdn-cache
+      - lb-conscentai-prod-ext-app-01
+      - '--path'
+      - /*
+      - '--project'
+      - prj-prod-conscentai-service
+    id: invalidation
+    entrypoint: bash
