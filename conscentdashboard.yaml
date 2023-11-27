@@ -1,0 +1,45 @@
+steps:
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - '-c'
+      - |
+        echo "REACT_APP_PAYTM_URL=${_REACT_APP_PAYTM_URL}" >> .env
+        echo "REACT_APP_API_URL=${_REACT_APP_API_URL}" >> .env
+        echo "REACT_APP_GOOGLE_CLIENT_ID=${_REACT_APP_GOOGLE_CLIENT_ID}" >> .env
+        echo "REACT_APP_RAZORPAY_KEY=${_REACT_APP_RAZORPAY_KEY}" >> .env
+        echo "REACT_APP_USE_RZP=${_REACT_APP_USE_RZP}" >> .env
+        echo "REACT_APP_FB_PIXEL_ID=${_REACT_APP_FB_PIXEL_ID}" >> .env
+        echo "REACT_APP_GTAG_ID=${_REACT_APP_GTAG_ID}" >> .env
+        echo "REACT_APP_SUBS_URL=${_REACT_APP_SUBS_URL}" >> .env
+        echo "REACT_APP_CLIENT_URL=${_REACT_APP_CLIENT_URL}" >> .env
+        echo "REACT_APP_KAFKA=${_REACT_APP_KAFKA}" >> .env
+        echo "REACT_APP_MERGE_CLIENT=${_REACT_APP_MERGE_CLIENT}" >> .env
+    id: Create Environment File
+    entrypoint: bash
+  - name: 'node:16.19.1'
+    args:
+      - '-c'
+      - |
+        npm install @craco/craco --save
+        npm run build
+    entrypoint: bash
+  - name: gcr.io/cloud-builders/gsutil
+    args:
+      - '-m'
+      - rsync
+      - '-r'
+      - build/
+      - 'gs://gcp-dashboard.conscent.in'
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - gcloud
+      - compute
+      - url-maps
+      - invalidate-cdn-cache
+      - lb-conscentai-prod-ext-app-01
+      - '--path'
+      - /*
+      - '--project'
+      - prj-prod-conscentai-service
+    id: invalidation
+    entrypoint: bash
